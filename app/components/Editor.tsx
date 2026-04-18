@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AspectPreset,
+  FillMode,
   probeDuration,
   processVideo,
 } from "../lib/ffmpeg";
@@ -20,6 +21,7 @@ export default function Editor() {
   const [trimStart, setTrimStart] = useState(0);
   const [trimEnd, setTrimEnd] = useState(0);
   const [aspect, setAspect] = useState<AspectPreset>("9:16");
+  const [fill, setFill] = useState<FillMode>("black");
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [outputUrl, setOutputUrl] = useState<string | null>(null);
@@ -68,6 +70,7 @@ export default function Editor() {
       const blob = await processVideo({
         file,
         aspect,
+        fill,
         trimStart: trimStart > 0 ? trimStart : undefined,
         trimEnd: trimEnd > 0 && trimEnd < duration ? trimEnd : undefined,
         onProgress: setProgress,
@@ -234,6 +237,39 @@ export default function Editor() {
                           }`}
                         >
                           {a.hint}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+
+                <section>
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/50">
+                    Fill
+                  </h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(
+                      [
+                        { key: "black", label: "Black bars", hint: "Fastest" },
+                        { key: "blur", label: "Blurred edges", hint: "Still blur from 1st frame" },
+                      ] as const
+                    ).map((f) => (
+                      <button
+                        key={f.key}
+                        onClick={() => setFill(f.key)}
+                        className={`rounded-lg border px-3 py-2 text-left text-sm transition ${
+                          fill === f.key
+                            ? "border-white bg-white text-black"
+                            : "border-white/15 hover:border-white/40"
+                        }`}
+                      >
+                        <div className="font-medium">{f.label}</div>
+                        <div
+                          className={`text-xs ${
+                            fill === f.key ? "text-black/60" : "text-white/50"
+                          }`}
+                        >
+                          {f.hint}
                         </div>
                       </button>
                     ))}

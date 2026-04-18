@@ -40,6 +40,7 @@ export async function getFFmpeg(onLog?: LogFn): Promise<FFmpeg> {
 }
 
 export type AspectPreset = "9:16" | "1:1" | "16:9" | "4:5";
+export type FillMode = "black" | "blur";
 
 const PRESET_DIMENSIONS: Record<AspectPreset, { w: number; h: number }> = {
   "9:16": { w: 1080, h: 1920 },
@@ -51,6 +52,7 @@ const PRESET_DIMENSIONS: Record<AspectPreset, { w: number; h: number }> = {
 export interface ProcessOptions {
   file: File;
   aspect: AspectPreset;
+  fill?: FillMode;
   trimStart?: number;
   trimEnd?: number;
   onProgress?: ProgressFn;
@@ -58,7 +60,7 @@ export interface ProcessOptions {
 }
 
 export async function processVideo(opts: ProcessOptions): Promise<Blob> {
-  const { file, aspect, trimStart, trimEnd, onProgress, onLog } = opts;
+  const { file, aspect, fill = "black", trimStart, trimEnd, onProgress, onLog } = opts;
   const ffmpeg = await getFFmpeg(onLog);
 
   const progressHandler = ({ progress }: { progress: number }) => {
@@ -83,7 +85,24 @@ export async function processVideo(opts: ProcessOptions): Promise<Blob> {
     args.push("-t", trimEnd.toFixed(3));
   }
 
-  args.push("-vf", buildFilter(w, h));
+  const thumbName = "thumb.png";
+  if (fill === "blur") {
+    await ffmpeg.exec([
+      "-y",
+      "-i",
+      inputName,
+      "-frames:v",
+      "1",
+      "-update",
+      "1",
+      thumbName,
+    ]);
+    args.push("-loop", "1", "-i", thumbName);
+    args.push("-filter_complex", buildBlurFilter(w, h));
+    args.push("-map", "0:a?");
+  } else {
+    args.push("-vf", buildFilter(w, h));
+  }
   args.push(
     "-c:v",
     "libx264",
@@ -108,6 +127,11 @@ export async function processVideo(opts: ProcessOptions): Promise<Blob> {
   const data = (await ffmpeg.readFile(outputName)) as Uint8Array;
   await ffmpeg.deleteFile(inputName);
   await ffmpeg.deleteFile(outputName);
+  if (fill === "blur") {
+    try {
+      await ffmpeg.deleteFile(thumbName);
+    } catch {}
+  }
 
   const bytes = new Uint8Array(data);
   return new Blob([bytes.buffer as ArrayBuffer], { type: "video/mp4" });
@@ -115,6 +139,14 @@ export async function processVideo(opts: ProcessOptions): Promise<Blob> {
 
 function buildFilter(w: number, h: number): string {
   return `scale=${w}:${h}:force_original_aspect_ratio=decrease,pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2:black,setsar=1`;
+}
+
+function buildBlurFilter(w: number, h: number): string {
+  return (
+    `[1:v]scale=${w}:${h}:force_original_aspect_ratio=increase,crop=${w}:${h},boxblur=20:1[bg];` +
+    `[0:v]scale=${w}:${h}:force_original_aspect_ratio=decrease[fg];` +
+    `[bg][fg]overlay=(W-w)/2:(H-h)/2:shortest=1,setsar=1`
+  );
 }
 
 function guessExt(name: string): string {
