@@ -2,6 +2,8 @@
 
 Reshape any video to 9:16, 1:1, 4:5, or 16:9 — centered with black bars. Runs **100% in the browser** via ffmpeg.wasm. Nothing is uploaded.
 
+**Live: https://localvid.vercel.app**
+
 ## Features
 
 - Aspect presets: 9:16, 1:1, 4:5, 16:9
@@ -15,8 +17,6 @@ Reshape any video to 9:16, 1:1, 4:5, or 16:9 — centered with black bars. Runs 
 npm install
 npm run dev
 ```
-
-Open http://localhost:3000.
 
 ## Why the COOP/COEP headers?
 
