@@ -13,9 +13,9 @@ export default function Home() {
             localvid
           </h1>
           <p className="mt-3 max-w-2xl text-white/60 md:text-lg">
-            Reshape any video to 9:16, 1:1, 4:5 or 16:9 — with blur-fill
-            background or clean black bars. Runs entirely in your browser via
-            WebAssembly. Your file never leaves your device.
+            Reshape any video to 9:16, 1:1, 4:5 or 16:9 — centered with
+            black bars. Runs entirely in your browser via WebAssembly. Your
+            file never leaves your device.
           </p>
         </header>
 

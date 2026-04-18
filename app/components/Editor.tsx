@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AspectPreset,
-  FillMode,
   probeDuration,
   processVideo,
 } from "../lib/ffmpeg";
@@ -21,13 +20,13 @@ export default function Editor() {
   const [trimStart, setTrimStart] = useState(0);
   const [trimEnd, setTrimEnd] = useState(0);
   const [aspect, setAspect] = useState<AspectPreset>("9:16");
-  const [fill, setFill] = useState<FillMode>("blur");
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [outputUrl, setOutputUrl] = useState<string | null>(null);
   const [logs, setLogs] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [confirmTweak, setConfirmTweak] = useState(false);
 
   const previewUrl = useSourceUrl(file);
 
@@ -69,7 +68,6 @@ export default function Editor() {
       const blob = await processVideo({
         file,
         aspect,
-        fill,
         trimStart: trimStart > 0 ? trimStart : undefined,
         trimEnd: trimEnd > 0 && trimEnd < duration ? trimEnd : undefined,
         onProgress: setProgress,
@@ -125,18 +123,18 @@ export default function Editor() {
       ) : (
         <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
           <div className="space-y-4">
-            <div className="overflow-hidden rounded-xl bg-black">
+            <div className="flex items-center justify-center overflow-hidden rounded-xl bg-black">
               {outputUrl ? (
                 <video
                   src={outputUrl}
                   controls
-                  className="h-auto max-h-[70vh] w-full"
+                  className="max-h-[70vh] max-w-full object-contain"
                 />
               ) : previewUrl ? (
                 <video
                   src={previewUrl}
                   controls
-                  className="h-auto max-h-[70vh] w-full"
+                  className="max-h-[70vh] max-w-full object-contain"
                 />
               ) : null}
             </div>
@@ -162,134 +160,157 @@ export default function Editor() {
           </div>
 
           <div className="space-y-5 rounded-xl border border-white/10 bg-white/[0.02] p-5">
-            <section>
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/50">
-                Aspect
-              </h3>
-              <div className="grid grid-cols-2 gap-2">
-                {ASPECTS.map((a) => (
-                  <button
-                    key={a.key}
-                    onClick={() => setAspect(a.key)}
-                    className={`rounded-lg border px-3 py-2 text-left text-sm transition ${
-                      aspect === a.key
-                        ? "border-white bg-white text-black"
-                        : "border-white/15 hover:border-white/40"
-                    }`}
-                  >
-                    <div className="font-medium">{a.label}</div>
-                    <div
-                      className={`text-xs ${
-                        aspect === a.key ? "text-black/60" : "text-white/50"
-                      }`}
-                    >
-                      {a.hint}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </section>
-
-            <section>
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/50">
-                Fill
-              </h3>
-              <div className="grid grid-cols-2 gap-2">
-                {(["blur", "black"] as FillMode[]).map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => setFill(m)}
-                    className={`rounded-lg border px-3 py-2 text-sm transition ${
-                      fill === m
-                        ? "border-white bg-white text-black"
-                        : "border-white/15 hover:border-white/40"
-                    }`}
-                  >
-                    {m === "blur" ? "Blur background" : "Black bars"}
-                  </button>
-                ))}
-              </div>
-            </section>
-
-            {duration > 0 && (
-              <section>
-                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/50">
-                  Trim
-                </h3>
-                <div className="space-y-3 text-xs">
-                  <label className="block">
-                    <div className="mb-1 flex justify-between text-white/60">
-                      <span>Start</span>
-                      <span>{trimStart.toFixed(2)}s</span>
-                    </div>
-                    <input
-                      type="range"
-                      min={0}
-                      max={duration}
-                      step={0.05}
-                      value={trimStart}
-                      onChange={(e) => {
-                        const v = Number(e.target.value);
-                        setTrimStart(Math.min(v, trimEnd - 0.1));
-                      }}
-                      className="w-full"
-                    />
-                  </label>
-                  <label className="block">
-                    <div className="mb-1 flex justify-between text-white/60">
-                      <span>End</span>
-                      <span>{trimEnd.toFixed(2)}s</span>
-                    </div>
-                    <input
-                      type="range"
-                      min={0}
-                      max={duration}
-                      step={0.05}
-                      value={trimEnd}
-                      onChange={(e) => {
-                        const v = Number(e.target.value);
-                        setTrimEnd(Math.max(v, trimStart + 0.1));
-                      }}
-                      className="w-full"
-                    />
-                  </label>
+            {outputUrl ? (
+              <>
+                <div className="text-xs font-semibold uppercase tracking-wider text-white/50">
+                  Done · {aspect}
                 </div>
-              </section>
-            )}
+                <a
+                  href={outputUrl}
+                  download={`localvid-${aspect.replace(":", "x")}.mp4`}
+                  className="block w-full rounded-lg bg-white py-3 text-center text-sm font-semibold text-black transition hover:bg-white/90"
+                >
+                  Download
+                </a>
+                {confirmTweak ? (
+                  <div className="space-y-2 rounded-lg border border-white/20 bg-white/5 p-3">
+                    <div className="text-xs text-white/70">
+                      Discard this result and go back to edit?
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setOutputUrl(null);
+                          setConfirmTweak(false);
+                        }}
+                        className="flex-1 rounded-md border border-white/30 py-2 text-xs font-medium transition hover:bg-white/10"
+                      >
+                        Yes, tweak
+                      </button>
+                      <button
+                        onClick={() => setConfirmTweak(false)}
+                        className="flex-1 rounded-md border border-white/10 py-2 text-xs text-white/60 transition hover:bg-white/5"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirmTweak(true)}
+                    className="block w-full rounded-lg border border-white/20 py-3 text-center text-sm font-medium transition hover:bg-white/5"
+                  >
+                    Tweak settings
+                  </button>
+                )}
+                <button
+                  onClick={resetFile}
+                  className="block w-full text-center text-xs text-white/50 underline-offset-4 hover:text-white hover:underline"
+                >
+                  Convert another video
+                </button>
+              </>
+            ) : (
+              <>
+                <section>
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/50">
+                    Aspect
+                  </h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    {ASPECTS.map((a) => (
+                      <button
+                        key={a.key}
+                        onClick={() => setAspect(a.key)}
+                        className={`rounded-lg border px-3 py-2 text-left text-sm transition ${
+                          aspect === a.key
+                            ? "border-white bg-white text-black"
+                            : "border-white/15 hover:border-white/40"
+                        }`}
+                      >
+                        <div className="font-medium">{a.label}</div>
+                        <div
+                          className={`text-xs ${
+                            aspect === a.key ? "text-black/60" : "text-white/50"
+                          }`}
+                        >
+                          {a.hint}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </section>
 
-            <button
-              onClick={run}
-              disabled={processing}
-              className="w-full rounded-lg bg-white py-3 text-sm font-semibold text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {processing
-                ? `Processing… ${Math.round(progress * 100)}%`
-                : "Convert"}
-            </button>
+                {duration > 0 && (
+                  <section>
+                    <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/50">
+                      Trim
+                    </h3>
+                    <div className="space-y-3 text-xs">
+                      <label className="block">
+                        <div className="mb-1 flex justify-between text-white/60">
+                          <span>Start</span>
+                          <span>{trimStart.toFixed(2)}s</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={duration}
+                          step={0.05}
+                          value={trimStart}
+                          onChange={(e) => {
+                            const v = Number(e.target.value);
+                            setTrimStart(Math.min(v, trimEnd - 0.1));
+                          }}
+                          className="w-full"
+                        />
+                      </label>
+                      <label className="block">
+                        <div className="mb-1 flex justify-between text-white/60">
+                          <span>End</span>
+                          <span>{trimEnd.toFixed(2)}s</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={duration}
+                          step={0.05}
+                          value={trimEnd}
+                          onChange={(e) => {
+                            const v = Number(e.target.value);
+                            setTrimEnd(Math.max(v, trimStart + 0.1));
+                          }}
+                          className="w-full"
+                        />
+                      </label>
+                    </div>
+                  </section>
+                )}
 
-            {processing && (
-              <div className="h-1 overflow-hidden rounded-full bg-white/10">
-                <div
-                  className="h-full bg-white transition-all"
-                  style={{ width: `${progress * 100}%` }}
-                />
-              </div>
-            )}
+                <button
+                  onClick={run}
+                  disabled={processing}
+                  className="w-full rounded-lg bg-white py-3 text-sm font-semibold text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {processing
+                    ? `Processing… ${Math.round(progress * 100)}%`
+                    : "Convert"}
+                </button>
 
-            {outputUrl && (
-              <a
-                href={outputUrl}
-                download={`localvid-${aspect.replace(":", "x")}.mp4`}
-                className="block w-full rounded-lg border border-white/30 py-3 text-center text-sm font-medium transition hover:bg-white/5"
-              >
-                Download
-              </a>
-            )}
+                {processing && (
+                  <div className="h-1 overflow-hidden rounded-full bg-white/10">
+                    <div
+                      className="h-full bg-white transition-all"
+                      style={{ width: `${progress * 100}%` }}
+                    />
+                  </div>
+                )}
 
-            {error && (
-              <div className="rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-xs text-red-300">
-                {error}
-              </div>
+                {error && (
+                  <div className="rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-xs text-red-300">
+                    {error}
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>

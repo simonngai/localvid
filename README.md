@@ -1,11 +1,11 @@
 # localvid
 
-Reshape any video to 9:16, 1:1, 4:5, or 16:9 — with blur-fill background or clean black bars. Runs **100% in the browser** via ffmpeg.wasm. Nothing is uploaded.
+Reshape any video to 9:16, 1:1, 4:5, or 16:9 — centered with black bars. Runs **100% in the browser** via ffmpeg.wasm. Nothing is uploaded.
 
 ## Features
 
 - Aspect presets: 9:16, 1:1, 4:5, 16:9
-- Fill modes: blur-fill background, black bars
+- Centered with black bars
 - Trim start/end
 - In-browser processing — your file never leaves your device
 

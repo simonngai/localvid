@@ -1,10 +1,15 @@
 "use client";
 
 import { FFmpeg } from "@ffmpeg/ffmpeg";
-import { fetchFile, toBlobURL } from "@ffmpeg/util";
+import { fetchFile } from "@ffmpeg/util";
 
-const CORE_VERSION = "0.12.10";
-const CORE_BASE = `https://unpkg.com/@ffmpeg/core-mt@${CORE_VERSION}/dist/esm`;
+const CORE_PATH = "/ffmpeg/core";
+const CLASSES_PATH = "/ffmpeg/classes";
+
+function absURL(path: string): string {
+  if (typeof window === "undefined") return path;
+  return `${window.location.origin}${path}`;
+}
 
 let ffmpegInstance: FFmpeg | null = null;
 let loadPromise: Promise<FFmpeg> | null = null;
@@ -21,9 +26,10 @@ export async function getFFmpeg(onLog?: LogFn): Promise<FFmpeg> {
     if (onLog) ffmpeg.on("log", ({ message }) => onLog(message));
 
     await ffmpeg.load({
-      coreURL: await toBlobURL(`${CORE_BASE}/ffmpeg-core.js`, "text/javascript"),
-      wasmURL: await toBlobURL(`${CORE_BASE}/ffmpeg-core.wasm`, "application/wasm"),
-      workerURL: await toBlobURL(`${CORE_BASE}/ffmpeg-core.worker.js`, "text/javascript"),
+      classWorkerURL: absURL(`${CLASSES_PATH}/worker.js`),
+      coreURL: absURL(`${CORE_PATH}/ffmpeg-core.js`),
+      wasmURL: absURL(`${CORE_PATH}/ffmpeg-core.wasm`),
+      workerURL: absURL(`${CORE_PATH}/ffmpeg-core.worker.js`),
     });
 
     ffmpegInstance = ffmpeg;
@@ -34,7 +40,6 @@ export async function getFFmpeg(onLog?: LogFn): Promise<FFmpeg> {
 }
 
 export type AspectPreset = "9:16" | "1:1" | "16:9" | "4:5";
-export type FillMode = "blur" | "black";
 
 const PRESET_DIMENSIONS: Record<AspectPreset, { w: number; h: number }> = {
   "9:16": { w: 1080, h: 1920 },
@@ -46,7 +51,6 @@ const PRESET_DIMENSIONS: Record<AspectPreset, { w: number; h: number }> = {
 export interface ProcessOptions {
   file: File;
   aspect: AspectPreset;
-  fill: FillMode;
   trimStart?: number;
   trimEnd?: number;
   onProgress?: ProgressFn;
@@ -54,7 +58,7 @@ export interface ProcessOptions {
 }
 
 export async function processVideo(opts: ProcessOptions): Promise<Blob> {
-  const { file, aspect, fill, trimStart, trimEnd, onProgress, onLog } = opts;
+  const { file, aspect, trimStart, trimEnd, onProgress, onLog } = opts;
   const ffmpeg = await getFFmpeg(onLog);
 
   const progressHandler = ({ progress }: { progress: number }) => {
@@ -79,8 +83,7 @@ export async function processVideo(opts: ProcessOptions): Promise<Blob> {
     args.push("-t", trimEnd.toFixed(3));
   }
 
-  const filter = buildFilter(w, h, fill);
-  args.push("-vf", filter);
+  args.push("-vf", buildFilter(w, h));
   args.push("-c:v", "libx264", "-preset", "fast", "-crf", "20", "-pix_fmt", "yuv420p");
   args.push("-c:a", "aac", "-b:a", "128k");
   args.push(outputName);
@@ -99,16 +102,8 @@ export async function processVideo(opts: ProcessOptions): Promise<Blob> {
   return new Blob([bytes.buffer as ArrayBuffer], { type: "video/mp4" });
 }
 
-function buildFilter(w: number, h: number, fill: FillMode): string {
-  if (fill === "black") {
-    return `scale=${w}:${h}:force_original_aspect_ratio=decrease,pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2:black,setsar=1`;
-  }
-  return [
-    `[0:v]split=2[bg][fg]`,
-    `[bg]scale=${w}:${h}:force_original_aspect_ratio=increase,crop=${w}:${h},boxblur=luma_radius=40:luma_power=2[bgb]`,
-    `[fg]scale=${w}:${h}:force_original_aspect_ratio=decrease[fgs]`,
-    `[bgb][fgs]overlay=(W-w)/2:(H-h)/2,setsar=1`,
-  ].join(";");
+function buildFilter(w: number, h: number): string {
+  return `scale=${w}:${h}:force_original_aspect_ratio=decrease,pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2:black,setsar=1`;
 }
 
 function guessExt(name: string): string {

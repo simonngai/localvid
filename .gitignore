@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# copied at install/build time from node_modules (see scripts/copy-ffmpeg.mjs)
+/public/ffmpeg/

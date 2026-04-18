@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "localvid — reshape video 9:16 / 1:1 / 16:9, 100% local",
   description:
-    "Convert video aspect ratio in the browser. Blur-fill or black bars. Nothing uploaded — runs on your device via WebAssembly.",
+    "Convert video aspect ratio in the browser with black bars. Nothing uploaded — runs on your device via WebAssembly.",
 };
 
 export default function RootLayout({
