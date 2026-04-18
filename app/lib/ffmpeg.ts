@@ -84,7 +84,18 @@ export async function processVideo(opts: ProcessOptions): Promise<Blob> {
   }
 
   args.push("-vf", buildFilter(w, h));
-  args.push("-c:v", "libx264", "-preset", "fast", "-crf", "20", "-pix_fmt", "yuv420p");
+  args.push(
+    "-c:v",
+    "libx264",
+    "-preset",
+    "ultrafast",
+    "-crf",
+    "23",
+    "-pix_fmt",
+    "yuv420p",
+    "-threads",
+    "0",
+  );
   args.push("-c:a", "aac", "-b:a", "128k");
   args.push(outputName);
 
